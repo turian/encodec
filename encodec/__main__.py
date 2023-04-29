@@ -7,8 +7,10 @@
 """Command-line for audio compression."""
 
 import argparse
+import os
 from pathlib import Path
 import sys
+from tqdm.auto import tqdm
 
 import torchaudio
 import torch
@@ -16,6 +18,8 @@ import time
 
 from .compress import compress, decompress, MODELS
 from .utils import save_audio, convert_audio
+from .dataloader import MP3Dataset
+from torch.utils.data import Dataset, DataLoader
 
 
 SUFFIX = '.ecdc'
@@ -104,14 +108,22 @@ def main():
             fatal(f"Bandwidth {args.bandwidth} is not supported by the model {model_name}")
         assert args.bandwidth == 24
         model.set_target_bandwidth(args.bandwidth)
-
-        emb_start = time.time()
-        wav, sr = torchaudio.load(args.input)
         if torch.cuda.is_available():
             model.to("cuda")
-            wav = wav.to("cuda")
-        wav = convert_audio(wav, sr, model.sample_rate, model.channels)
-        emb = compress(model, wav, use_lm=args.lm, get_embeddings=True, batch_size=args.batch_size, overlap=args.overlap)
+
+        # Create dataset and dataloader objects
+        dataset = MP3Dataset("/data", sample_rate=model.sample_rate, channels=model.channels)
+        dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=30)
+
+        for filepaths, wavs in tqdm(dataloader, total=len(dataloader)):
+            assert len(filepaths) == 1
+            filepath = filepaths[0]
+            wav = wavs[0]
+            if wav != filepath:
+                wav = wav.to("cuda")
+                emb = compress(model, wav, use_lm=args.lm, get_embeddings=True, batch_size=args.batch_size, overlap=args.overlap)
+                torch.save(emb.cpu(), Path(filepath).with_suffix(".pt"))
+            os.remove(filepath)
         """
         emb2 = compress(model, wav, use_lm=args.lm, get_embeddings=True, overlap=args.overlap)
         print(len(emb), len(emb2))
@@ -125,7 +137,6 @@ def main():
             assert (e-e2).max() < 1e-2
         """
         #print(emb.shape)
-        torch.save(emb.cpu(), args.output)
         #print("emb", time.time() - emb_start)
         #print("main", time.time() - main_start)
 

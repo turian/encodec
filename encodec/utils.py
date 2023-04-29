@@ -75,7 +75,7 @@ def _check_checksum(path: Path, checksum: str):
         raise RuntimeError(f'Invalid checksum for file {path}, '
                            f'expected {checksum} but got {actual_checksum}')
 
-
+resamplers = {}
 def convert_audio(wav: torch.Tensor, sr: int, target_sr: int, target_channels: int):
     assert wav.dim() >= 2, "Audio tensor must have at least 2 dimensions"
     assert wav.shape[-2] in [1, 2], "Audio must be mono or stereo."
@@ -88,11 +88,15 @@ def convert_audio(wav: torch.Tensor, sr: int, target_sr: int, target_channels: i
         wav = wav.expand(target_channels, -1)
     else:
         raise RuntimeError(f"Impossible to convert from {channels} to {target_channels}")
-    if torch.cuda.is_available():
-        wav = torchaudio.transforms.Resample(sr, target_sr).to("cuda")(wav)
-    else:
-        wav = torchaudio.transforms.Resample(sr, target_sr)(wav)
-    return wav
+#    if torch.cuda.is_available():
+#        wav = torchaudio.transforms.Resample(sr, target_sr).to("cuda")(wav)
+#    else:
+#        wav = torchaudio.transforms.Resample(sr, target_sr)(wav)
+    if sr == target_sr:
+        return wav
+    if (sr, target_sr) not in resamplers:
+        resamplers[(sr, target_sr)] = torchaudio.transforms.Resample(sr, target_sr)
+    return resamplers[(sr, target_sr)](wav)
 
 
 def save_audio(wav: torch.Tensor, path: tp.Union[Path, str],
