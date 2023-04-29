@@ -122,7 +122,8 @@ def main():
             if wav != filepath:
                 wav = wav.to("cuda")
                 emb = compress(model, wav, use_lm=args.lm, get_embeddings=True, batch_size=args.batch_size, overlap=args.overlap)
-                torch.save(emb.cpu(), Path(filepath).with_suffix(".pt"))
+                if emb is not None:
+                    torch.save(emb.cpu(), Path(filepath).with_suffix(".pt"))
             os.remove(filepath)
         """
         emb2 = compress(model, wav, use_lm=args.lm, get_embeddings=True, overlap=args.overlap)

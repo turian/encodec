@@ -228,8 +228,11 @@ class EncodecModel(nn.Module):
 #                    encoded_frames.append(self._encode_frame(frame))
 #                incorrect_length_frames = []
 #                print("bad frames", time.time() - start)
-        
-        return torch.cat(encoded_framess, dim=0)
+       
+        if encoded_framess:
+            return torch.cat(encoded_framess, dim=0)
+        else:
+            return None
 
     def _encode_frame_batched(self, x: torch.Tensor) -> tp.List[EncodedFrame]:
         length = x.shape[-1]
