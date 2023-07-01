@@ -18,7 +18,7 @@ import time
 
 from .compress import compress, decompress, MODELS
 from .utils import save_audio, convert_audio
-from .dataloader import MP3Dataset
+from .dataloader import AudioDataset
 from torch.utils.data import Dataset, DataLoader
 
 
@@ -112,7 +112,7 @@ def main():
             model.to("cuda")
 
         # Create dataset and dataloader objects
-        dataset = MP3Dataset("/data", sample_rate=model.sample_rate, channels=model.channels)
+        dataset = AudioDataset("/data", sample_rate=model.sample_rate, channels=model.channels)
         dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=30)
 
         for filepaths, wavs in tqdm(dataloader, total=len(dataloader)):
